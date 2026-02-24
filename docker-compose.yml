@@ -1,0 +1,333 @@
+version: '3.8'
+
+# ============================================================================
+# E-COMMERCE OBSERVABILITY PLATFORM
+# ============================================================================
+# This compose file sets up:
+# 1. Application services (FastAPI backend, PostgreSQL)
+# 2. Observability stack (OTel Collector, Prometheus, Jaeger, Loki, Promtail, Grafana)
+#
+# Network: All services communicate on 'ecommerce-net' bridge network
+# ============================================================================
+
+services:
+  # ===== APPLICATION LAYER =====
+  
+  # --------------------------------------------------------------------------
+  # FastAPI Backend
+  # --------------------------------------------------------------------------
+  # Role: Central hub for data collection and storage for the e-commerce application
+  # 
+  # What it does:
+  # 1. RECEIVES data from the backend application (user data, orders, inventory)
+  # 2. PROCESSES data (validation, enrichment)
+  # 3. EXPORTS data to the OpenTelemetry Collector
+  #
+  # Why use it?
+  # - Centralized data management
+  # - Simplified data access for analytics and reporting
+  # - Instrumented with OpenTelemetry for seamless observability
+  # --------------------------------------------------------------------------
+
+  backend:
+    build: ./backend
+    container_name: ecommerce-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://user:password@postgres:5432/ecommerce
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - OTEL_SERVICE_NAME=ecommerce-backend
+      - OTEL_RESOURCE_ATTRIBUTES=service.namespace=ecommerce,service.version=1.0.0
+    depends_on:
+      - postgres
+      - otel-collector
+    networks:
+      - ecommerce-net
+    restart: unless-stopped
+
+  # --------------------------------------------------------------------------
+  # PostgreSQL Database
+  # --------------------------------------------------------------------------
+  # Role: Central hub for data collection and storage for the e-commerce application
+  # 
+  # What it does:
+  # 1. RECEIVES data from the backend application (user data, orders, inventory)
+  # 2. PROCESSES data (validation, enrichment)
+  # 3. EXPORTS data to the OpenTelemetry Collector
+  #
+  # Why use it?
+  # - Centralized data management
+  # - Simplified data access for analytics and reporting
+  # --------------------------------------------------------------------------
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: ecommerce-db
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=ecommerce
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    networks:
+      - ecommerce-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d ecommerce"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+  # ===== OBSERVABILITY LAYER ===== #
+  # ================================ #
+
+  # --------------------------------------------------------------------------
+  # OpenTelemetry Collector
+  # --------------------------------------------------------------------------
+  # Role: Central hub for all observability data
+  # 
+  # What it does:
+  # 1. RECEIVES data from applications via OTLP protocol
+  # 2. PROCESSES data (sampling, filtering, batching)
+  # 3. EXPORTS data to backends (Prometheus, Jaeger)
+  #
+  # Why use it?
+  # - Decouples applications from backend systems
+  # - One place to configure telemetry pipelines
+  # - Can send same data to multiple destinations
+  # - Reduces load on applications
+  # --------------------------------------------------------------------------
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: otel-collector
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./observability/otel-collector/otel-config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - "4317:4317"   # OTLP gRPC receiver
+      - "4318:4318"   # OTLP HTTP receiver
+
+      # Prometheus metrics (collector's own health metrics)
+      - "8888:8888"   # Prometheus internal metrics
+      - "8889:8889"   # Prometheus exporter endpoint
+    networks:
+      - ecommerce-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:13133/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # --------------------------------------------------------------------------
+  # Prometheus
+  # --------------------------------------------------------------------------
+  # Role: Metrics storage and querying
+  #
+  # Key Feature: --enable-feature=otlp-write-receiver
+  # THIS IS THE INTEROPERABILITY MAGIC!
+  #
+  # Traditional flow (old way):
+  #   App → Prometheus Exporter → Prometheus scrapes → Stores metrics
+  #
+  # OpenTelemetry flow (new way):
+  #   App → OTLP → OTel Collector → Prometheus OTLP receiver → Stores metrics
+  #
+  # Benefits:
+  # - No need for Prometheus-specific exporters
+  # - Push-based (better for ephemeral containers)
+  # - Same instrumentation for traces AND metrics
+  # --------------------------------------------------------------------------
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+      - '--enable-feature=otlp-write-receiver'  # THIS IS KEY FOR INTEROPERABILITY! It allows Prometheus to accept OTLP metrics directly!
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - ecommerce-net
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # --------------------------------------------------------------------------
+  # Jaeger
+  # --------------------------------------------------------------------------
+  # Role: Distributed tracing backend and UI
+  #
+  # What it stores:
+  # - Traces: End-to-end request flows
+  # - Spans: Individual operations within a trace
+  # - Span relationships: Parent-child, follows-from
+  #
+  # Why Jaeger?
+  # - Native OTLP support (no exporters needed)
+  # - Great UI for exploring traces
+  # - Good for debugging performance issues
+  # --------------------------------------------------------------------------
+  
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: jaeger
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true # Enable OTLP receiver for direct trace ingestion from the collector
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "14250:14250"  # gRPC
+    networks:
+      - ecommerce-net
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:14269/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # --------------------------------------------------------------------------
+  # Loki
+  # --------------------------------------------------------------------------
+  # Role: Log aggregation and storage
+  #
+  # The 3rd Pillar: Logs
+  # - Traces: "What happened and in what order?"
+  # - Metrics: "How many? How fast?"
+  # - Logs: "What specifically happened? Error details?"
+  #
+  # Why Loki?
+  # - Designed for Kubernetes/Docker logs
+  # - Integrates with Grafana (same company)
+  # - Cost-effective (indexes metadata, not log content)
+  # - Works with OpenTelemetry logs
+  # --------------------------------------------------------------------------
+  
+  loki:
+    image: grafana/loki:latest
+    container_name: loki
+    command: ["-config.file=/etc/loki/local-config.yaml"]
+    ports:
+      - "3100:3100"  # Loki API
+    volumes:
+      - ./observability/loki/loki-config.yaml:/etc/loki/local-config.yaml
+      - loki-data:/loki
+    networks:
+      - ecommerce-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3100/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # --------------------------------------------------------------------------
+  # Promtail
+  # --------------------------------------------------------------------------
+  # Role: Log shipper (collects logs → sends to Loki)
+  #
+  # What it does:
+  # 1. Reads Docker container logs
+  # 2. Adds labels (container name, image, etc.)
+  # 3. Sends to Loki for storage
+  #
+  # Alternative: OpenTelemetry Collector can also send logs to Loki, 
+  # but using Promtail is simpler for Docker logs and allows for more flexible log collection 
+  # (e.g., tailing log files, reading from journald, etc.)
+  # --------------------------------------------------------------------------
+  
+  promtail:
+    image: grafana/promtail:latest
+    container_name: promtail
+    command: ["-config.file=/etc/promtail/config.yaml"]
+    volumes:
+      - ./observability/loki/promtail-config.yaml:/etc/promtail/config.yaml
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - ecommerce-net
+    restart: unless-stopped
+
+  # --------------------------------------------------------------------------
+  # Grafana
+  # --------------------------------------------------------------------------
+  # Role: Unified observability dashboard
+  #
+  # Data sources:
+  # - Prometheus (metrics)
+  # - Jaeger (traces)
+  #
+  # Why Grafana?
+  # - Correlate metrics and traces in one place
+  # - Build custom dashboards
+  # - Alert on metrics
+  # - Beautiful visualizations
+  # --------------------------------------------------------------------------
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_FEATURE_TOGGLES_ENABLE=traceqlEditor  # Enable TraceQL queries
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+      - jaeger
+      - loki
+    networks:
+      - ecommerce-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ============================================================================
+  # VOLUMES
+  # ============================================================================
+  # Persistent storage for databases and metrics
+  # --------------------------------------------------------------------------
+
+volumes:
+  postgres-data:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+  loki-data:
+    driver: local
+
+  # ============================================================================
+  # NETWORKS
+  # ============================================================================
+  # Bridge network for inter-container communication
+  # --------------------------------------------------------------------------
+
+networks:
+  ecommerce-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.16.0.0/16
