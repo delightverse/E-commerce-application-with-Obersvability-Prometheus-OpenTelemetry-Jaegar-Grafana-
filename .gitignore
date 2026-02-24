@@ -33,4 +33,5 @@ Thumbs.db
 
 #Others
 my_file.md
-docker-compose.yml
+commits/*
+commit*
