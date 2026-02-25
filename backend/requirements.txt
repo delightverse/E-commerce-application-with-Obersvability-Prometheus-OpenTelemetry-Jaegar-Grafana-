@@ -1,0 +1,44 @@
+# ============================================================================
+# Python Dependencies for E-Commerce Backend
+# ============================================================================
+
+# ===== Web Framework =====
+fastapi==0.109.0              # Modern async web framework
+uvicorn[standard]==0.27.0     # ASGI server (production-ready)
+pydantic==2.5.3               # Data validation using Python type hints
+pydantic-settings==2.1.0      # Environment variable management
+
+# ===== Database =====
+sqlalchemy==2.0.25            # SQL toolkit and ORM
+psycopg2-binary==2.9.9        # PostgreSQL adapter
+alembic==1.13.1               # Database migrations
+
+# ===== OpenTelemetry Core =====
+# These are the foundation libraries
+opentelemetry-api==1.22.0              # API for creating traces, metrics, logs
+opentelemetry-sdk==1.22.0              # SDK implementation
+opentelemetry-semantic-conventions==0.43b0  # Standard attribute names
+
+# ===== OpenTelemetry Auto-Instrumentation =====
+# These automatically instrument libraries (zero code changes!)
+opentelemetry-instrumentation==0.43b0                    # Base instrumentation
+opentelemetry-instrumentation-fastapi==0.43b0            # Auto-instrument FastAPI
+opentelemetry-instrumentation-sqlalchemy==0.43b0         # Auto-instrument SQLAlchemy
+opentelemetry-instrumentation-psycopg2==0.43b0           # Auto-instrument Postgres driver
+opentelemetry-instrumentation-requests==0.43b0           # Auto-instrument HTTP requests
+opentelemetry-instrumentation-logging==0.43b0            # Auto-instrument Python logging
+
+# ===== OpenTelemetry Exporters =====
+# These send data to backends
+opentelemetry-exporter-otlp-proto-grpc==1.22.0      # Export via OTLP/gRPC (fastest)
+opentelemetry-exporter-otlp-proto-http==1.22.0      # Export via OTLP/HTTP (fallback)
+opentelemetry-exporter-prometheus==0.43b0            # Export to Prometheus (optional)
+
+# ===== Prometheus Client =====
+# For custom metrics (business metrics like revenue, orders)
+prometheus-client==0.19.0
+
+# ===== Utilities =====
+python-multipart==0.0.6       # Form data parsing
+python-jose[cryptography]==3.3.0  # JWT tokens (for future auth)
+requests==2.31.0              # HTTP client library
