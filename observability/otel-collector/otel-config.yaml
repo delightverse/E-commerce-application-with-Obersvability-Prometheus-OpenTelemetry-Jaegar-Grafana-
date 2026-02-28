@@ -8,12 +8,8 @@ receivers:
 
 processors:
   batch:
-    timeout: 10s
+    timeout: 1s
     send_batch_size: 1024
-  
-  memory_limiter:
-    check_interval: 1s
-    limit_mib: 512
 
 exporters:
   otlp/jaeger:
@@ -26,17 +22,18 @@ exporters:
     tls:
       insecure: true
   
-  logging:
-    loglevel: info
+  debug:
+    verbosity: detailed
 
 service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [memory_limiter, batch]
-      exporters: [otlp/jaeger, logging]
-    
+      processors: [batch]
+      exporters: [otlp/jaeger, debug]
+
     metrics:
       receivers: [otlp]
-      processors: [memory_limiter, batch]
-      exporters: [otlphttp/prometheus, logging]
+      processors: [batch]
+      exporters: [otlphttp/prometheus, debug]
+
