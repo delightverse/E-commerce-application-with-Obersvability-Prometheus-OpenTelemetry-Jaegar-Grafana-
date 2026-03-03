@@ -1,14 +1,12 @@
 -- ============================================================================
 -- E-Commerce Database Seed Data
 -- ============================================================================
--- This script populates the database with sample products for demonstration
--- SQLAlchemy creates the schema, this just adds initial data
+-- Tables already created by 01-create-schema.sql
+-- Products can now be inserted!
 -- ============================================================================
 
--- Wait for tables to be created by backend
--- (SQLAlchemy's Base.metadata.create_all() runs first)
 
--- Sample Products
+-- Insert Sample Products
 INSERT INTO products (name, description, price, stock, created_at) VALUES
 ('iPhone 15 Pro', 'Latest Apple smartphone with A17 Pro chip and titanium design', 999.99, 50, NOW()),
 ('MacBook Pro M3', '14-inch laptop with M3 chip, 16GB RAM, 512GB SSD', 1999.99, 30, NOW()),
@@ -21,4 +19,14 @@ INSERT INTO products (name, description, price, stock, created_at) VALUES
 ('Apple TV 4K', 'Streaming device with 4K HDR and Dolby Atmos', 179.99, 40, NOW()),
 ('AirTag 4 Pack', 'Item trackers for finding your belongings', 99.99, 150, NOW());
 
+ON CONFLICT DO NOTHING;
+
+-- Verify seeding
+DO $$
+DECLARE
+    product_count INTEGER;
+BEGIN
+    SELECT COUNT(*) INTO product_count FROM products;
+    RAISE NOTICE '✅ Seeded % products successfully', product_count;
+END $$;
 -- Note: Orders will be created through the API to demonstrate observability features with real practice transactions.
