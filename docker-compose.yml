@@ -40,8 +40,10 @@ services:
       - OTEL_SERVICE_NAME=ecommerce-backend
       - OTEL_RESOURCE_ATTRIBUTES=service.namespace=ecommerce,service.version=1.0.0
     depends_on:
-      - postgres
-      - otel-collector
+      postgres:
+        condition: service_healthy  # Wait for PostgreSQL to be healthy before starting the backend
+      otel-collector:
+        condition: service_started
     networks:
       - ecommerce-net
     restart: unless-stopped
