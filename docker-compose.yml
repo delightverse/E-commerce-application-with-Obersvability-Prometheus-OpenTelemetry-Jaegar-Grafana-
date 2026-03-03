@@ -46,6 +46,57 @@ services:
       - ecommerce-net
     restart: unless-stopped
 
+# --------------------------------------------------------------------------
+  # Frontend (E-Commerce Web UI)
+  # --------------------------------------------------------------------------
+  # Role: User interface for the e-commerce application
+  #
+  # What it does:
+  # - Serves static HTML/CSS/JavaScript files
+  # - Provides product catalog browsing interface
+  # - Shopping cart functionality (client-side)
+  # - Order placement (triggers backend API calls)
+  # - Direct links to observability tools
+  #
+  # Technology:
+  # - nginx:alpine (lightweight web server)
+  # - Pure vanilla JavaScript (no framework)
+  # - Responsive CSS with gradient UI
+  # - Fetch API for backend communication
+  #
+  # Integration:
+  # - Calls FastAPI backend at http://localhost:8000
+  # - CORS enabled in backend for cross-origin requests
+  # - Real-time product and stock updates
+  #
+  # Observability demonstration:
+  # - Each order placement generates distributed trace
+  # - Shows multi-span traces (validate, payment, save, inventory)
+  # - Links directly to Jaeger, Prometheus, Grafana UIs
+  # - Success messages prompt user to check traces
+  #
+  # Architecture:
+  # frontend/ directory contains:
+  # - index.html (structure)
+  # - styles.css (presentation)
+  # - app.js (behavior/logic)
+  # - Dockerfile (nginx container config)
+  # --------------------------------------------------------------------------
+  
+  frontend:
+    build: ./frontend
+    container_name: ecommerce-frontend
+    ports:
+      - "8080:80"  # Map container port 80 to host port 8080 to avoid conflict with backend
+    networks:
+      - ecommerce-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
   # --------------------------------------------------------------------------
   # PostgreSQL Database
   # --------------------------------------------------------------------------
