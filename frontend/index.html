@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E-Commerce Demo - OpenTelemetry Observability</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🛒 E-Commerce Demo with OpenTelemetry</h1>
+            <p>Demonstrating distributed tracing, metrics, and logs with FastAPI + OpenTelemetry + Prometheus + Jaeger + Grafana</p>
+        </div>
+        
+        <div class="observability-links">
+            <a href="http://localhost:8000/docs" target="_blank" class="obs-link">
+                <h3>📚 API Docs</h3>
+                <p>FastAPI Swagger UI</p>
+            </a>
+            <a href="http://localhost:16686" target="_blank" class="obs-link">
+                <h3>🔍 Jaeger</h3>
+                <p>Distributed Traces</p>
+            </a>
+            <a href="http://localhost:9090" target="_blank" class="obs-link">
+                <h3>📊 Prometheus</h3>
+                <p>Metrics & Queries</p>
+            </a>
+            <a href="http://localhost:3000" target="_blank" class="obs-link">
+                <h3>📈 Grafana</h3>
+                <p>Dashboards (admin/admin)</p>
+            </a>
+        </div>
+        
+        <div class="content">
+            <div class="card">
+                <h2>Product Catalog</h2>
+                <div id="productsLoading" class="loading">Loading products...</div>
+                <div id="productsGrid" class="products-grid"></div>
+            </div>
+            
+            <div class="card">
+                <h2>Shopping Cart</h2>
+                <div id="cartItems"></div>
+                <div id="cartTotal" class="cart-total"></div>
+                <button id="checkoutBtn" class="btn-primary" disabled>Place Order (Generates Traces!)</button>
+                <div id="successMessage" class="success-message"></div>
+                <div id="errorMessage" class="error-message"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- JavaScript loaded at bottom for better page performance -->
+    <script src="app.js"></script>
+</body>
+</html>
