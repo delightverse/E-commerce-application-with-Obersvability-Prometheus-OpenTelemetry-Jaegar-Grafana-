@@ -87,14 +87,12 @@ docker-compose logs -f backend
 # - API Docs (Swagger): http://localhost:8000/docs
 # - Prometheus: http://localhost:9090
 # - Jaeger UI: http://localhost:16686
-# - Loki: http://localhost:3100
 # - Grafana: http://localhost:3000 (admin/admin)
 
 # Health checks
 curl http://localhost:8000/health
 curl http://localhost:9090/-/healthy
 curl http://localhost:16686/
-curl http://localhost:3100/ready
 ```
 
 ## Observability Endpoints
@@ -106,7 +104,6 @@ curl http://localhost:3100/ready
 | **FastAPI Metrics** | http://localhost:8000/metrics | Prometheus metrics endpoint |
 | **Prometheus UI** | http://localhost:9090 | Query and explore metrics |
 | **Jaeger UI** | http://localhost:16686 | Trace search and visualization |
-| **Loki API** | http://localhost:3100 | Log query API (use via Grafana) |
 | **Grafana** | http://localhost:3000 | Unified observability dashboards [admin/admin]|
 | **OTel Collector Health** | http://localhost:13133 | Collector health endpoint |
 
