@@ -50,6 +50,16 @@ def get_db():
     finally:
         db.close()
 
+@app.get("/")
+async def root():
+    return {
+        "message": "E-Commerce API with OpenTelemetry",
+        "docs": "/docs",
+        "health": "/health",
+        "products": "/products/",
+        "orders": "/orders/"
+    }
+
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "service": "ecommerce-backend"}
