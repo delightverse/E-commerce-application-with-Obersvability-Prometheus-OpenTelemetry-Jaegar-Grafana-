@@ -31,7 +31,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-Base.metadata.create_all(bind=engine)
+# Base.metadata.create_all(bind=engine) # commented because database/init/01-create-schema.sql already created the database
 
 tracer = trace.get_tracer(__name__)
 meter = metrics.get_meter(__name__)
